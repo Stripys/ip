@@ -1,1 +1,1 @@
-to start game open "game script"
+to start game open "game/pythonProject/.venv/Lib/generate.py"
