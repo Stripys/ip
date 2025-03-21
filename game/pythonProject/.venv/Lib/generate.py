@@ -146,8 +146,8 @@ class Player:
     def regenerate_health(self):
         current_time = pygame.time.get_ticks()
 
-        if current_time - self.last_damage_time > 300:
-            self.health = min(100, self.health + 0.005)
+        if current_time - self.last_damage_time > 3000:
+            self.health = min(100, self.health + 1)
 
     def take_damage(self, amount):
         self.health = max(0, self.health - amount)
@@ -155,8 +155,8 @@ class Player:
 
     def draw_health(self, screen):
         pass
-        pygame.draw.rect(screen, (255, 0, 0), (10, 10, 200, 20))
-        pygame.draw.rect(screen, (0, 255, 0), (10, 10, 2 * self.health, 20))
+        pygame.draw.rect(screen, (255, 0, 0), (self.position[0] - 50, self.position[1] - 70, 100, 10))
+        pygame.draw.rect(screen, (0, 255, 0), (self.position[0] - 50, self.position[1] - 70, self.health, 10))
 
 class Enemy:
     def __init__(self, x, y):
@@ -165,7 +165,7 @@ class Enemy:
         self.image = pygame.image.load('enemy.png').convert_alpha()
         self.rect = self.image.get_rect(center=(x * TILE_SIZE + TILE_SIZE / 2, y * TILE_SIZE + TILE_SIZE / 2))
         self.vision_radius = 256
-        self.health = 3
+        self.health = 1
         self.last_attack_time = pygame.time.get_ticks()
 
     def move_towards_player(self, player_position, map):
@@ -252,7 +252,6 @@ class Map():
             a = random.randint(mini, x-mini)
             while self.map[0][a-3].typee!=0 or self.map[0][a-2].typee!=0 or self.map[0][a-1].typee!=0 or self.map[0][a].typee!=0 or self.map[0][a+1].typee!=0 or self.map[0][a+2].typee!=0 or self.map[0][a+3].typee!=0:
                 a = random.randint(mini, x-mini)
-                print(a)
             b = a
 
             for i in range(y):
@@ -261,7 +260,6 @@ class Map():
             a = random.randint(mini, y-mini)
             n=0
             map = self.map
-            print(self)
             b = True
             while not (self.map[a-2][0].typee==0 and self.map[a-1][0].typee==0 and self.map[a][0].typee==0 and self.map[a+1][0].typee==0 and self.map[a+2][0].typee==0):
                 n+=1
@@ -274,7 +272,7 @@ class Map():
                 for i in range(x):
                     self.map[c][i] = Tile(3)
 
-        for i in range(3):
+        for i in range(5):
             self.spawn_x = random.randint(1, x - 2)
             self.spawn_y = random.randint(1, y - 2)
             while self.map[self.spawn_y][self.spawn_x].typee != 0:
@@ -293,7 +291,7 @@ class Map():
             for j in range(len(self.map[i])):
                 if self.map[i][j].typee == 3 or self.map[i][j].typee == 4:
                     self.map[i][j] = Tile(0)
-
+        self.map[0][0] = Tile(2)
         print(self)
 
 
@@ -352,16 +350,13 @@ class Map():
             pass
 
         house_coords = [[x0, y0],[x1, y1]]
-        print(house_coords)
         for i in range(y1 - y0 + 1):
             for j in range(x1 - x0 + 1):
                 try:
                     if self.map[i+y0][j+x0].typee == 3:
                         self.map[i+y0][j+x0] = Tile(2)
-                        print('a')
                     elif self.map[i+y0][j+x0].typee == 0:
                         self.map[i+y0][j+x0] = Tile(1)
-                        print('b')
                 except IndexError:
                     pass
 
@@ -370,8 +365,6 @@ class Map():
         self.map[y1][random.randint(x0 + 1, x1 - 1)] = Tile(1)
         self.map[random.randint(y0 + 1, y1 - 1)][x0] = Tile(1)
         self.map[random.randint(y0 + 1, y1 - 1)][x1] = Tile(1)
-
-        print(self)
 
     def __str__(self):
         strr = ''
@@ -382,14 +375,20 @@ class Map():
             strr += '\n'
         return strr
 
-def spawn_enemies(map, count):
+def spawn_enemies(map, count, player_pos, enmy_dov = 5):
     enemies = []
+    print(spawn)
     occupied_tiles = set()
     for _ in range(count):
         while True:
             x = random.randint(0, len(map.map[0]) - 1)
             y = random.randint(0, len(map.map) - 1)
-            if map.map[y][x].typee == 0 and (x, y) not in occupied_tiles:
+
+            dx = abs(player_pos[0] - x)
+            dy = abs(player_pos[1] - y)
+            distance = math.hypot(dx, dy)
+            print(distance)
+            if (map.map[y][x].typee == 0 or map.map[y][x].typee == 1) and (x, y) not in occupied_tiles and distance>=enmy_dov:
                 enemies.append(Enemy(x, y))
                 occupied_tiles.add((x, y))
                 break
@@ -397,13 +396,18 @@ def spawn_enemies(map, count):
 
 
 class Button:
-    def __init__(self, x, y, text, font_size=30):
+    def __init__(self, x, y, text, font_size=30, typ = False):
         self.image = pygame.image.load('Button.png').convert_alpha()
         self.image = pygame.transform.scale(self.image, (244, 124))
         self.rect = self.image.get_rect(topleft=(x, y))
         self.text = text
         self.font = pygame.font.Font('overdozesans.ttf', font_size)
         self.text_surf = self.font.render(text, True, BLACK)
+
+        if typ:
+            self.image = pygame.image.load('pause.png').convert_alpha()
+            self.image = pygame.transform.scale(self.image, (64, 64))
+            self.rect = self.image.get_rect(topleft=(x, y))
 
     def draw(self, screen):
         screen.blit(self.image, self.rect)
@@ -424,12 +428,12 @@ karta = Map(X, Y)
 karta.generate(30, 17)
 spawn = karta.spawn_x, karta.spawn_y
 play = Player('player_test.png', spawn)
-enemies = spawn_enemies(karta, 10)
+enemies = spawn_enemies(karta, 50, spawn, 5)
 MAP = karta.map
 screen_width, screen_height = pygame.display.get_surface().get_size()
 
 button_start = Button(screen_width // 2 - 122, screen_height // 2 - 150, "Новая игра")
-button_load = Button(screen_width // 2 - 122, screen_height // 2, "Загрузить игру")
+button_load = Button(screen_width // 2 - 122, screen_height // 2, "Продолжить игру")
 button_exit = Button(screen_width // 2 - 122, screen_height // 2 + 150, "Выйти")
 button_records = Button(screen_width - 244 - 20, screen_height - 124 - 20, "Рекорды")
 
@@ -440,6 +444,8 @@ button_resume = Button(screen_width // 2 - 122, screen_height // 2 - 200, "Пр�
 button_pause_menu = Button(screen_width // 2 - 122, screen_height // 2 - 50, "Выйти в меню")
 button_restart = Button(screen_width // 2 - 122, screen_height // 2 + 100, "Рестарт")
 button_pause_exit = Button(screen_width // 2 - 122, screen_height // 2 + 250, "Выйти из игры")
+
+button_pause = Button(0, 0, '', typ = True)
 
 show_pause_menu = False
 show_menu = True
@@ -459,7 +465,7 @@ while run:
                     karta.generate(30, 17)
                     spawn = karta.spawn_x, karta.spawn_y
                     play = Player('player_test.png', spawn)
-                    enemies = spawn_enemies(karta, 50)
+                    enemies = spawn_enemies(karta, 50, spawn, 5)
 
                 elif button_load.is_clicked(event.pos):
                     show_menu = False
@@ -494,10 +500,10 @@ while run:
                     is_dead = False
                     show_menu = True
                     play = Player('player_test.png', spawn)
-                    enemies = spawn_enemies(karta, 10)
+                    enemies = spawn_enemies(karta, 50, spawn, 5)
 
     elif show_pause_menu:
-        blurred_background = apply_gaussian_blur(background_surface, sigma=1.5)
+        blurred_background = apply_gaussian_blur(background_surface, sigma=3)
         display.blit(blurred_background, (0, 0))
         pause_text = font.render("Пауза", True, BLACK)
         pause_text_rect = pause_text.get_rect(center=(screen_width // 2, screen_height // 2 - 300))
@@ -521,7 +527,7 @@ while run:
                     karta.generate(30, 17)
                     spawn = karta.spawn_x, karta.spawn_y
                     play = Player('player_test.png', spawn)
-                    enemies = spawn_enemies(karta, 50)
+                    enemies = spawn_enemies(karta, 50, spawn, 5)
                 elif button_pause_exit.is_clicked(event.pos):
                     run = False
             if event.type == pygame.KEYDOWN:
@@ -530,11 +536,16 @@ while run:
 
 
     else:
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
             if event.type == pygame.MOUSEBUTTONDOWN:
-                play.shoot()
+                if button_pause.is_clicked(event.pos):
+                    show_pause_menu = True
+                    background_surface = display.copy()
+                else:
+                    play.shoot()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     show_pause_menu = True
@@ -565,6 +576,8 @@ while run:
             is_dead = True
             play.draw_health(display)
             background_surface = display.copy()
+
+        button_pause.draw(display)
 
     pygame.display.flip()
     clock.tick(FPS)
