@@ -4,18 +4,37 @@ import pygame
 import numpy as np
 from scipy.ndimage import gaussian_filter
 import pygame.surfarray as surfarray
-
+import os
 
 pygame.init()
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
+GREEN = (0, 255, 0)
 FPS = 60
 TILE_SIZE = 64
 X = 30
 Y = 17
 
+RECORDS_FILE = "records.txt"
+current_level = 1
+max_level = 0
+
+def load_record():
+    if os.path.exists(RECORDS_FILE):
+        with open(RECORDS_FILE, 'r') as f:
+            try:
+                return int(f.read())
+            except:
+                return 0
+    return 0
+
+def save_record(level):
+    with open(RECORDS_FILE, 'w') as f:
+        f.write(str(level))
+
+max_level = load_record()
 
 class Arrow:
     def __init__(self, x, y, angle, speed):
@@ -422,6 +441,7 @@ def apply_gaussian_blur(surface, sigma=5):
     blurred_array = gaussian_filter(array, sigma=(sigma, sigma, 0))
     return surfarray.make_surface(blurred_array)
 
+
 display = pygame.display.set_mode(flags=pygame.FULLSCREEN)
 clock = pygame.time.Clock()
 karta = Map(X, Y)
@@ -435,7 +455,6 @@ screen_width, screen_height = pygame.display.get_surface().get_size()
 button_start = Button(screen_width // 2 - 122, screen_height // 2 - 150, "Новая игра")
 button_load = Button(screen_width // 2 - 122, screen_height // 2, "Продолжить игру")
 button_exit = Button(screen_width // 2 - 122, screen_height // 2 + 150, "Выйти")
-button_records = Button(screen_width - 244 - 20, screen_height - 124 - 20, "Рекорды")
 
 button_death_exit = Button(screen_width // 2 - 122, screen_height // 2 + 50, "Выйти из игры")
 button_death_menu = Button(screen_width // 2 - 122, screen_height // 2 - 100, "Обратно в меню")
@@ -445,13 +464,17 @@ button_pause_menu = Button(screen_width // 2 - 122, screen_height // 2 - 50, "В
 button_restart = Button(screen_width // 2 - 122, screen_height // 2 + 100, "Рестарт")
 button_pause_exit = Button(screen_width // 2 - 122, screen_height // 2 + 250, "Выйти из игры")
 
-button_pause = Button(0, 0, '', typ = True)
+button_pause = Button(0, 0, '', typ=True)
+
+button_win_next = Button(screen_width // 2 - 122, screen_height // 2 - 50, "Следующий уровень")
+button_win_menu = Button(screen_width // 2 - 122, screen_height // 2 + 100, "В меню")
 
 show_pause_menu = False
 show_menu = True
 is_dead = False
+is_win = False
 font = pygame.font.Font('overdozesans.ttf', 74)
-
+small_font = pygame.font.Font('overdozesans.ttf', 36)
 
 run = True
 while run:
@@ -462,25 +485,28 @@ while run:
             if event.type == pygame.MOUSEBUTTONDOWN and show_menu:
                 if button_start.is_clicked(event.pos):
                     show_menu = False
+                    current_level = 1
                     karta.generate(30, 17)
                     spawn = karta.spawn_x, karta.spawn_y
                     play = Player('player_test.png', spawn)
                     enemies = spawn_enemies(karta, 50, spawn, 5)
-
                 elif button_load.is_clicked(event.pos):
                     show_menu = False
                 elif button_exit.is_clicked(event.pos):
                     run = False
-                elif button_records.is_clicked(event.pos):
-                    pass
+
         display.fill(WHITE)
         text = font.render("Random combat", True, BLACK)
         text_rect = text.get_rect(center=(screen_width // 2, screen_height // 2 - 300))
         display.blit(text, text_rect)
+
+        record_text = small_font.render(f"Рекорд: {max_level}", True, BLACK)
+        record_rect = record_text.get_rect(center=(screen_width // 2, screen_height // 2 - 200))
+        display.blit(record_text, record_rect)
+
         button_start.draw(display)
         button_load.draw(display)
         button_exit.draw(display)
-        button_records.draw(display)
 
     elif is_dead:
         blurred_background = apply_gaussian_blur(background_surface, sigma=3)
@@ -488,8 +514,14 @@ while run:
         death_text = font.render("Вы проиграли", True, RED)
         death_text_rect = death_text.get_rect(center=(screen_width // 2, screen_height // 2 - 150))
         display.blit(death_text, death_text_rect)
+
+        level_text = small_font.render(f"Достигнут уровень: {current_level}", True, BLACK)
+        level_rect = level_text.get_rect(center=(screen_width // 2, screen_height // 2 - 115))
+        display.blit(level_text, level_rect)
+
         button_death_exit.draw(display)
         button_death_menu.draw(display)
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
@@ -499,8 +531,41 @@ while run:
                 elif button_death_menu.is_clicked(event.pos):
                     is_dead = False
                     show_menu = True
+                    current_level = 1
                     play = Player('player_test.png', spawn)
                     enemies = spawn_enemies(karta, 50, spawn, 5)
+
+    elif is_win:
+        blurred_background = apply_gaussian_blur(background_surface, sigma=3)
+        display.blit(blurred_background, (0, 0))
+        win_text = font.render("Победа!", True, GREEN)
+        win_text_rect = win_text.get_rect(center=(screen_width // 2, screen_height // 2 - 150))
+        display.blit(win_text, win_text_rect)
+
+        level_text = small_font.render(f"Уровень {current_level} пройден!", True, BLACK)
+        level_rect = level_text.get_rect(center=(screen_width // 2, screen_height // 2 - 70))
+        display.blit(level_text, level_rect)
+
+        button_win_next.draw(display)
+        button_win_menu.draw(display)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if button_win_next.is_clicked(event.pos):
+                    is_win = False
+                    current_level += 1
+                    if current_level > max_level:
+                        max_level = current_level
+                        save_record(max_level)
+                    karta.generate(30, 17)
+                    spawn = karta.spawn_x, karta.spawn_y
+                    play = Player('player_test.png', spawn)
+                    enemies = spawn_enemies(karta, 50 + current_level * 5, spawn, 5)
+                elif button_win_menu.is_clicked(event.pos):
+                    is_win = False
+                    show_menu = True
 
     elif show_pause_menu:
         blurred_background = apply_gaussian_blur(background_surface, sigma=3)
@@ -508,6 +573,11 @@ while run:
         pause_text = font.render("Пауза", True, BLACK)
         pause_text_rect = pause_text.get_rect(center=(screen_width // 2, screen_height // 2 - 300))
         display.blit(pause_text, pause_text_rect)
+
+        level_text = small_font.render(f"Уровень: {current_level}", True, WHITE)
+        level_rect = level_text.get_rect(center=(screen_width // 2, screen_height // 2 - 200))
+        display.blit(level_text, level_rect)
+
         button_resume.draw(display)
         button_pause_menu.draw(display)
         button_restart.draw(display)
@@ -534,9 +604,7 @@ while run:
                 if event.key == pygame.K_ESCAPE:
                     show_pause_menu = False
 
-
     else:
-
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
@@ -577,11 +645,17 @@ while run:
             play.draw_health(display)
             background_surface = display.copy()
 
+        if len(enemies) == 0:
+            is_win = True
+            background_surface = display.copy()
+
+        level_text = small_font.render(f"Уровень: {current_level}", True, BLACK)
+        display.blit(level_text, (80, 20))
+
         button_pause.draw(display)
 
     pygame.display.flip()
     clock.tick(FPS)
 
 pygame.quit()
-
 
