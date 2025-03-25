@@ -1,1 +1,1 @@
-to start game open "game/pythonProject/.venv/Lib/generate.py"
+to start game, download folder "exe" and open "exe/game.exe"
